@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "mltree"
+version = "0.1.0"
+description = ""
+authors = ["Arno V <bcda0276@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+rich = ">=10.11.0,<13.0.0"
+typer = {extras = ["all"], version = "^0.7.0"}
+pyyaml = "^6.0"
+toml = "^0.10.2"
+pytest = "^7.2.0"
+xmltodict = "^0.13.0"
+
+[tool.poetry.scripts]
+mltree = "mltree.cli:app"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
