@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, Any, Tuple, Union, List
+from typing import Dict, Any, Tuple, Union, List, Callable
 
 utils_dir = Path(__file__).parent
 package_dir = utils_dir.parent

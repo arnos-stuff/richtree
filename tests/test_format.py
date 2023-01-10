@@ -1,7 +1,7 @@
 import rich
 
-from mltree.core.reader import read_file
-from mltree.utils.paths import tests_dir
+from iotree.core.io.reader import read_file
+from iotree.utils.paths import tests_dir
 
 
 class TestTOML:

@@ -4,15 +4,25 @@ import json
 import rich
 import typer
 import subprocess
+from signal import SIGINT, signal
 from rich.prompt import Prompt, Confirm
 
-from mltree.core.reader import read
-from mltree.core.render import (
-    build, initConfig,
-    demo_symbols, demo_themes,
-    tableFromRecords
+
+from iotree.core.io.reader import read
+
+from iotree.core.render.trees import (
+    build
 )
-from mltree.utils.paths import (
+
+from iotree.core.render.demo import (
+    demo_symbols, demo_themes, colorTable,
+)
+
+from iotree.core.render.tables import (
+    tableFromRecords, treeThemeToTable, recordFormatting,
+
+)
+from iotree.utils.paths import (
     config_dir, package_dir,
     base_dir, tests_dir, safe_config_load
 )
@@ -22,10 +32,31 @@ console = rich.console.Console()
 symbols, themes, user_info, local_config = safe_config_load()
 
 app = typer.Typer(
-    name='mltree',
+    name='iotree',
     help='A CLI & python package for rendering markup language docs as trees.',
     no_args_is_help=True,
+    rich_help_panel=True,
+    rich_markup_mode='rich',
     )
+
+config = typer.Typer(
+    name='config',
+    help='Configure the style of your tree.',
+    no_args_is_help=True,
+    rich_help_panel=True,
+    rich_markup_mode='rich',
+    )
+     
+app.add_typer(config, name='config',
+    help='Configure the style of your tree.',
+    rich_help_panel=True,
+    )
+
+app.add_typer(config, name='cfg', hidden=True,
+    help='Alias for `config`. Configure the style of your tree.',
+    rich_help_panel=True,
+    )
+
 
 @app.command(name='render', help='Render a Markup Language file as a tree.')
 def render(
@@ -43,27 +74,27 @@ def checks():
 @app.command(name='demo', help='Run a demo of the CLI part of the package.')
 def demo():
     """Run a demo of the CLI part of the package."""
-    subprocess.run(tests_dir / 'render_ex.py')
-    
-config = typer.Typer(
-    name='config',
-    help='Configure the style of your tree.',
-    no_args_is_help=True)
+    path = str(tests_dir / 'render_ex.py')
+    subprocess.run([ sys.executable, path])
 
 @config.command(name='init', help='Initialize a config file.')
 def initialize(
-    user: str = typer.Option("machine", "-u", "--user", help='The user to set the value for.'),
+    user: str = typer.Option(None, "-u", "--user", help='The user to set the value for.'),
     use_saved: bool = typer.Option(True, "-us", "--use-saved", help='Use the saved config.'),
     ):
     """Set a config value. These values are saved in the config directory.
     
     The file is named `local-config.json` can be updated either manually or through this command.
     """
-    user = os.getlogin() if user == 'machine' else user
+    user = (
+        user_info['last_user'] if user is None
+        else user or os.getlogin()
+        )
+    
     ok = None
     console.print(f'[bold orange]Warning: no user declared.[/][dim magenta] using default/declared value = [underline]{user}[/][/]')
     if use_saved and len(local_config) > 0:
-        lconf = local_config["user_info"] if "user_info" in lconf else local_config
+        lconf = local_config["user_info"] if "user_info" in local_config else local_config
         if user not in lconf:
             lconf["user_info"] = {user: "default"}
             console.print(f'[bold magenta]No config found for user [underline]{user}, [/][/][bold magenta]using default value.[/]')
@@ -71,7 +102,7 @@ def initialize(
             uconf = lconf["user_info"][user]
             uconf_theme = user_info[user]['theme'] if user in user_info else user_info['default']['theme']
             console.print(f'[bold magenta]Config found for user {user}[/]')
-            console.print(f'[dim magenta]Config: {uconf} ===> {uconf_theme}: {__themes[uconf_theme]}[/]')
+            console.print(f'[dim magenta]Config: {uconf} ===> {uconf_theme}: {themes[uconf_theme]}[/]')
             ok = Confirm.ask('[bold green underline]No need to initialize.[/] [bold magenta] Would you still like to overwrite these ?[/]')
     if ok is None:
         ok = Confirm.ask('[bold red]No saved config found.[/] [bold magenta] Would you like to create one?[/]')
@@ -102,7 +133,7 @@ def initialize(
 def setter(
     param: str = typer.Argument(..., help='The parameter to set.'),
     value: str = typer.Argument(..., help='The value to set the parameter to.'),
-    user: str = typer.Argument(..., help='The user to set the value for.'),
+    user: str = typer.Argument(None, help='The user to set the value for.'),
     ):
     """Set a config value. These values are saved in the config directory.
     
@@ -114,8 +145,38 @@ def setter(
     [bold red]Note: [/]The `last_user` parameter is set automatically when the `init` command is run.
     [bold red]Note: [/][orange]The value is [underline]only set for the given user[/underline][/].
     """
+    confpaths = [config_dir / 'local-config.json', config_dir / 'user-settings.json']
+    
+    user = (
+        local_config['last_user'] if user is None
+        else user or os.getlogin()
+        )
+    param, value, user = param.lower(), value.lower(), user.lower()
+    for i, conf in enumerate([local_config, user_info]):
+        if user not in conf:
+            conf[user] = {}
+            console.print(f'[bold magenta]No config found for user [underline]{user}, [/][/][bold magenta]using default value.[/]')
+        else:
+            uconf = (
+                conf[user] if user in conf
+                else conf["user_info"][user] if "user_info" in conf and user in conf["user_info"]
+                else conf
+                )
+            if param not in uconf:
+                console.print(f'[bold magenta]No config found for user [underline]{user}, [/][/][bold magenta]using default value.[/]')
+            else:
+                uconf[param] = value
+                json.dump(
+                    conf, open(confpaths[i], 'w+'), indent=4
+                    )
+                console.print(f'[dim magenta]Config: {uconf} ===> {param}: {value}[/]')
 
-@config.command(name='from-json', help='Add a new user from a JSON user entry.', no_args_is_help=True)
+@config.command(
+    name='from-file',
+    help='Add a new user from a JSON user entry. [bold yellow] Alias: `ff`[/]',
+    no_args_is_help=True
+    
+    )
 def from_file(
     markup_file: str = typer.Argument(..., help='The JSON/TOML/XML/YAML file containing the user entry.'),
     ):
@@ -158,7 +219,11 @@ def from_file(
         json.dump(local_config, open( config_dir /'local-config.json', 'w+'), indent=4)
         console.print(f'[bold green]Added user {content["user"]} to config.[/]')
 
-@config.command(name='ff', help='Alias for `from-file`, adds user from Markup language file', no_args_is_help=True)
+@config.command(
+    name='ff',
+    help='Alias for `from-file`, adds user from Markup language file',
+    no_args_is_help=True, hidden=True
+    )
 def ff(
     markup_file: str = typer.Argument(..., help='The JSON/TOML/XML/YAML file containing the user entry.'),
     ):
@@ -167,12 +232,31 @@ def ff(
 @config.command(name='get', help='Get a config value.', no_args_is_help=True)
 def getter(
     param: str = typer.Argument(..., help='The parameter to get.'),
-    user: str = typer.Option("machine", help='The user to get the value for.'),
+    user: str = typer.Option(None, help='The user to get the value for.'),
     ):
-    console.print(f'Getting {param} for {user}.')
-    console.print(user_info[user][param])
+    confpaths = [config_dir / 'local-config.json', config_dir / 'user-settings.json']
+    user = (
+        local_config['last_user'] if user is None
+        else user or os.getlogin()
+        )
+    param, user = param.lower(), user.lower()
+    for i, conf in enumerate([local_config, user_info]):
+        if user not in conf:
+            pass
+        else:
+            uconf = (
+                conf[user] if user in conf
+                else conf["user_info"][user] if "user_info" in conf and user in conf["user_info"]
+                else conf
+                )
+            if param not in uconf:
+                console.print(f'❗ [bold red]No config found for[/][cyan] user [underline]{user}, [/][/][bold magenta]using default value.[/]')
+            else:
+                value = uconf[param]
+                
+                console.print(f'✅ [bold green][underline]Found parameter:[/underline] {param} = {value} in [/][bold yellow]file {confpaths[i]}[/]')
 
-@config.command(name='list', help='List all config values.')
+@config.command(name='list', help='List all config values. [bold yellow] Alias: `ls`[/]')
 def lister():
     rows = []
     for user, values in user_info.items():
@@ -182,7 +266,7 @@ def lister():
     table = tableFromRecords(rows, title='User Settings', theme=user_info['default']['theme'])
     console.print(table)
     
-@config.command(name='ls', help='Alias for `list`.')
+@config.command(name='ls', help='Alias for `list`.', hidden=True)
 def ls():
     lister()
 
@@ -190,11 +274,31 @@ def ls():
 def reset():
     """Reset the config file."""
     os.remove(local_config)
-
-app.add_typer(config, name='config',
-    help='Configure the style of your tree.'
+    
+    
+@config.command(
+    name='view',
+    help='View currently available design options',
+    no_args_is_help=True,
     )
-
-app.add_typer(config, name='cfg',
-    help='Alias for `config`. Configure the style of your tree.'
-    )
+def view(
+    item: str = typer.Argument(..., help='The item to view.'),
+    ):
+    """View currently available design options.
+    
+    Notable items:
+    - themes
+    - symbols
+    - colors
+    """
+    
+    item = item.lower()
+    
+    if item == 'colors':
+        console.print(
+            colorTable()
+        )
+    else:
+        pass
+        
+   

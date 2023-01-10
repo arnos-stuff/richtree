@@ -7,7 +7,15 @@ import xmltodict as xtd
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple, Callable, Iterable
 
-formats = ['.json', '.yaml', '.toml', '.proto']
+from iotree.core.render.funcs import try_all
+
+formats = ['.json', '.yaml', '.toml', '.xml'] #'.proto
+readers = [
+    lambda path : json.loads(open(path,'r').read()),
+    lambda path : yaml.safe_load(open(path, 'r')),
+    lambda path : toml.loads(open(path, 'r').read()),
+    lambda path : xtd.parse(open(path, 'r').read())
+    ]
 
 def read(
     path: Union[str, Path],
@@ -40,8 +48,8 @@ def read_file(
     elif path.suffix == '.xml':
         return xtd.parse(open(path, 'r').read())
     else:
-        raise ValueError(f'Unsupported file format: {path.suffix}')
-    
+        try_all(readers, path)
+        
 def read_proto(
     path: Union[str, Path],
     ) -> Dict[str, Any]:

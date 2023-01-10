@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "mltree"
-version = "0.1.0"
-description = ""
+name = "iotree"
+version = "0.1.1"
+description = "A lightweight CLI + lib that allows you to perform basic IO tasks and display your content as rich trees and tables."
 authors = ["Arno V <bcda0276@gmail.com>"]
 readme = "README.md"
 
@@ -13,9 +13,10 @@ pyyaml = "^6.0"
 toml = "^0.10.2"
 pytest = "^7.2.0"
 xmltodict = "^0.13.0"
+httpx = {version = "^0.22.0", source = "pypi"}
 
 [tool.poetry.scripts]
-mltree = "mltree.cli:app"
+iotree = "iotree.cli:app"
 
 [build-system]
 requires = ["poetry-core"]

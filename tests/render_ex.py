@@ -1,8 +1,8 @@
 import rich
 
-from mltree.core.reader import read
-from mltree.core.render import build
-from mltree.utils.paths import tests_dir
+from iotree.core.io.reader import read
+from iotree.core.render.trees import build
+from iotree.utils.paths import tests_dir
 
 formats = ['json', 'yaml', 'toml', 'xml']
 
