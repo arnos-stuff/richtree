@@ -7,18 +7,7 @@ import xmltodict as xtd
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple, Callable, Iterable
 
-from iotree.core.render.funcs import try_all
-
-formats = ['.json', '.yaml', '.toml', 'xml'] #'.proto'
-
-writers = [
-    lambda data, path : json.dump(data, open(path, 'w+')),
-    lambda data, path : yaml.safe_dump(data, open(path, 'w+')),
-    lambda data, path : toml.dump(data, open(path, 'w+')),
-    lambda data, path : open(path, "w+").write(xtd.unparse(data))
-    #lambda data, path : write_proto(path)
-    ]
-
+from .internals import format_dict
 
 def write(
     path: Union[str, Path],
@@ -42,19 +31,13 @@ def write_file(
     
     Accepted data types: dict, list, str, etc."""
     path = Path(path)
+    suffix = path.suffix
+    writer = format_dict["writers_compact"].get(suffix, None)
     
-    if path.suffix == '.json':
-        json.dump(data, open(path, 'w+'))
-    elif path.suffix == '.yaml':
-        yaml.safe_dump(data, open(path, 'w+'))
-    elif path.suffix == '.toml':
-        toml.dump(data, open(path, 'w+'))
-    elif path.suffix == '.proto':
-        write_proto(path)
-    elif path.suffix == '.xml':
-        open(path, "w+").write(xtd.unparse(data))
+    if writer is not None:
+        return writer(data, path)
     else:
-        try_all(writers, data, path)
+        call_any(format_dict["writers"], data, path)
     
 def write_proto(
     path: Union[str, Path],

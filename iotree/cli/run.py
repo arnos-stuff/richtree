@@ -15,7 +15,8 @@ from iotree.core.render.trees import (
 )
 
 from iotree.core.render.demo import (
-    demo_symbols, demo_themes, colorTable, themeTable
+    demo_symbols, demo_themes,
+    colorTable, themeTable, render_file_demo
 )
 
 from iotree.core.render.tables import (
@@ -74,8 +75,7 @@ def checks():
 @app.command(name='demo', help='Run a demo of the CLI part of the package.')
 def demo():
     """Run a demo of the CLI part of the package."""
-    path = str(tests_dir / 'render_ex.py')
-    subprocess.run([ sys.executable, path])
+    render_file_demo(appname='iotree')
 
 @config.command(name='init', help='Initialize a config file.')
 def initialize(

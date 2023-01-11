@@ -1,14 +1,19 @@
 import rich
+import json
 from time import sleep
 
+from rich.text import Text
 from rich.tree import Tree
+from rich.rule import Rule
 from rich.color import Color
 from rich.panel import Panel
+from rich.layout import Layout, RowSplitter, ColumnSplitter
 from typing import Any, Dict, List, Union, Optional, Tuple
 
 from iotree.core.render.trees import build
+from ..io.reader import read
 from iotree.utils.paths import (
-    package_dir, base_dir, config_dir, safe_config_load
+    package_dir, base_dir, config_dir, safe_config_load,
 )
 
 symbols, themes, user_infos, local_config = safe_config_load()
@@ -16,6 +21,37 @@ symbols, themes, user_infos, local_config = safe_config_load()
 ##########################################
 ############ DEMO UTILS ##################
 ##########################################
+
+def render_file_demo(appname: str) -> None:
+    formats = ['json', 'yaml', 'toml', 'xml']
+    content = []
+    
+    for fmt in formats:
+        content += [Rule(" Extension: ." + fmt + " ")]
+        raw = open(package_dir.joinpath('examples', f'example.{fmt}'), 'r').read()
+        raw = Text(raw, style='bold yellow')
+        obj = read(package_dir.joinpath('examples', f'example.{fmt}'))
+        obj = Text(json.dumps(obj, indent=2), style='bold green')
+        tree = build(obj)
+        content += [[raw, obj, tree]]
+        
+    layout = Layout(name=f'Demo for {appname}', ratio=3)
+    layout.split_row(
+        *[
+            Layout(name=f'Row-{i}', size=1, ratio=1) for i in range(len(content))
+        ]
+    )
+    
+    for idx, cont in enumerate(content):
+        if isinstance(cont, list):
+            layout[f'Row-{idx}'].split_column(*cont)
+        else:
+            layout[f'Row-{idx}'].update(cont)
+            
+    rich.print(layout)
+        
+    
+        
 
 def print_demo(symbol: str, exlist: List[str]) -> None:
     """Print a demo of a symbol."""

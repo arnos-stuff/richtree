@@ -6,7 +6,7 @@ utils_dir = Path(__file__).parent
 package_dir = utils_dir.parent
 base_dir = package_dir.parent
 tests_dir = base_dir / 'tests'
-config_dir = base_dir / 'config'
+config_dir = package_dir / 'config'
 
 def safe_json_load(path: Union[str, Path]) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
     """Load a file or directory of files."""

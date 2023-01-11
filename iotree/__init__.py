@@ -4,7 +4,8 @@ from .core.render.trees import (
 )
 
 from .core.render.demo import (
-    demo_symbols, demo_themes, colorTable, themeTable
+    print_demo, demo_symbols, demo_themes,
+    colorTable, themeTable, render_file_demo
 )
 
 from .core.render.theme import (
@@ -12,7 +13,7 @@ from .core.render.theme import (
 )
 
 from .core.render.funcs import (
-    try_all, rich_func, rich_func_chainer,
+    call_any, rich_func, rich_func_chainer,
     format_user_theme, apply_progress_theme,
 )
 

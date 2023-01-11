@@ -1,5 +1,4 @@
 import rich
-import json
 from time import sleep
 
 from rich.tree import Tree
@@ -108,6 +107,6 @@ def build(
                       user=user
                       )
     else:
-        state.add(f"[{leaf_color}] {value}[/]")
+        state.add(f"[{leaf_color}] {dictlike}[/]")
         
     return state

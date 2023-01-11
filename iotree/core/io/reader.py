@@ -1,21 +1,9 @@
 import os
-import json
-import yaml
-import toml
-import xmltodict as xtd
 
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple, Callable, Iterable
 
-from iotree.core.render.funcs import try_all
-
-formats = ['.json', '.yaml', '.toml', '.xml'] #'.proto
-readers = [
-    lambda path : json.loads(open(path,'r').read()),
-    lambda path : yaml.safe_load(open(path, 'r')),
-    lambda path : toml.loads(open(path, 'r').read()),
-    lambda path : xtd.parse(open(path, 'r').read())
-    ]
+from .internals import read_any, format_dict
 
 def read(
     path: Union[str, Path],
@@ -37,18 +25,13 @@ def read_file(
     """Read a file."""
     path = Path(path)
     
-    if path.suffix == '.json':
-        return json.loads(open(path, 'r').read())
-    elif path.suffix == '.yaml':
-        return yaml.safe_load(open(path, 'r'))
-    elif path.suffix == '.toml':
-        return toml.loads(open(path, 'r').read())
-    elif path.suffix == '.proto':
-        return read_proto(path)
-    elif path.suffix == '.xml':
-        return xtd.parse(open(path, 'r').read())
+    suffix = path.suffix
+    reader = format_dict["readers_compact"].get(suffix, None)
+    
+    if reader is not None:
+        return reader(path)
     else:
-        try_all(readers, path)
+        return read_any(format_dict["readers"], path, msg=f'File format {suffix} not supported.')
         
 def read_proto(
     path: Union[str, Path],
@@ -62,7 +45,7 @@ def read_dir(
     """Read a directory of files."""
     readfiles = []
     for file in os.listdir(path):
-        if any(file.endswith(ext) for ext in formats):
+        if any(file.endswith(ext) for ext in format_dict["formats"]):
             readfiles.append(read_file(file))
             
     return readfiles

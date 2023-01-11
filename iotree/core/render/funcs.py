@@ -15,7 +15,7 @@ from iotree.utils.paths import (
 symbols, themes, user_infos, local_config = safe_config_load()
 
 
-def try_all(funcs: List[Callable], *args, **kwargs) -> Any:
+def call_any(funcs: List[Callable], *args, **kwargs) -> Any:
     """Try all functions in a list until one succeeds."""
     for f in funcs:
         try:
