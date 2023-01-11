@@ -18,8 +18,9 @@ from .theme import (
 
 from .demo import (
     print_demo, demo_symbols, demo_themes,
-    colorTable, themeTable, render_file_demo
+    colorTable, themeTable, symbolTable, extrasTable,
+    render_file_demo
 )
 
-from ..io import reader, writer
+from ..io import reader, writer, serialize
 

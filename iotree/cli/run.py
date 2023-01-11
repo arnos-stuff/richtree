@@ -9,14 +9,16 @@ from rich.prompt import Prompt, Confirm
 
 
 from iotree.core.io.reader import read
+from iotree.core.io.writer import write
 
 from iotree.core.render.trees import (
     build
 )
 
 from iotree.core.render.demo import (
-    demo_symbols, demo_themes,
-    colorTable, themeTable, render_file_demo
+    print_demo, demo_symbols, demo_themes,
+    colorTable, themeTable, symbolTable, extrasTable,
+    render_file_demo
 )
 
 from iotree.core.render.tables import (
@@ -47,27 +49,52 @@ config = typer.Typer(
     rich_help_panel="rich",
     rich_markup_mode='rich',
     )
-     
+
+dev = typer.Typer(
+    name='develop',
+    help="Work ☕💻 on the package's 📦 content.",
+    no_args_is_help=True,
+    rich_help_panel="rich",
+    rich_markup_mode='rich',
+    )
+
+view = typer.Typer(
+    name='view',
+    help="View 🔎 the package's 📦 themes 🖌️ & symbols ➡️ for customization 💅",
+    no_args_is_help=True,
+    rich_help_panel="rich",
+    rich_markup_mode='rich',
+    )
+
 app.add_typer(config, name='config',
-    help='Configure the style of your tree.',
+    help='Configure the ✨ style ✨ of your tree. [yellow]Alias: `cfg`.[/yellow]',
     rich_help_panel="rich",
     )
 
 app.add_typer(config, name='cfg', hidden=True,
-    help='Alias for `config`. Configure the style of your tree.',
+    help='Alias for `config`. Configure the ✨ style ✨ of your tree.',
     rich_help_panel="rich",
     )
 
+app.add_typer(view, name='view', hidden=False,
+    help="View 🔎 the package's 📦 themes 🖌️ & symbols 🗼 for customization 💅",
+    rich_help_panel="rich",
+    )
 
-@app.command(name='render', help='Render a Markup Language file as a tree.')
+app.add_typer(dev, name='develop', hidden=False,
+    help="Work 💻 on the package's 📦 content.",
+    rich_help_panel="rich",
+    )
+
+@app.command(name='render', help='Render a Markup Language file 📂 as a tree.')
 def render(
     file = typer.Argument(..., help='The file to render as a tree.'),
     ):
-    """Render a Markup Language file as a tree."""
+    """Render a Markup Language file 📂 as a tree 🌳."""
     obj = read(file)
     console.print(build(obj))
 
-@app.command(name='check', help='Run checks on the package.')
+@dev.command(name='check', help='Run checks ❓ on the package 📦')
 def checks():
     """Run checks on the package."""
     os.system('pytest')
@@ -122,12 +149,12 @@ def initialize(
         user_data['theme'] = user_theme
         user_info[user] = user_data
         lconf = { "user_info": {user: user_theme}, "last_user": user }
-        json.dump(user_info, open(config_dir / 'user-settings.json', 'w+'), indent=4)
-        json.dump(lconf, open( config_dir /'local-config.json', 'w+'), indent=4)
+        write(user_info, config_dir /'user-info.json')
+        write(lconf, config_dir /'user-info.json')
     else:
         console.print('[dim yellow]Proceeding with default values.[/]')
         lconf = { "user_info": {user: "default"}, "last_user": user }
-        json.dump(lconf, open( config_dir /'local-config.json', 'w+'), indent=4)
+        write(lconf, config_dir /'user-info.json')
             
 @config.command(name='set', help='Set a config value.', no_args_is_help=True)
 def setter(
@@ -146,41 +173,77 @@ def setter(
     [bold red]Note: [/][orange]The value is [underline]only set for the given user[/underline][/].
     """
     confpaths = [config_dir / 'local-config.json', config_dir / 'user-settings.json']
-    
-    user = (
-        local_config['last_user'] if user is None
-        else user or os.getlogin()
-        )
+
+    __local_config = read(confpaths[0])
+    __user_info = read(confpaths[1])
+
     param, value, user = param.lower(), value.lower(), user.lower()
-    for i, conf in enumerate([local_config, user_info]):
-        if user not in conf:
-            conf[user] = {}
-            console.print(f'[bold magenta]No config found for user [underline]{user}, [/][/][bold magenta]using default value.[/]')
+
+    if param == 'last_user':
+        __local_config['last_user'] = value
+        write(__local_config, confpaths[0])
+        console.print(f'[bold magenta] ✅ Config found for user {user}[/]')
+        console.print(f'[dim magenta] 👷 Config: {param} ===> {value}[/]')
+        sys.exit(0)
+
+    if user is not None and user not in __user_info:
+        ok = Confirm.ask(f'[bold red] ❌ No config found for user {user}[/] [bold magenta] Would you like to create one?[/]')
+        if ok:
+            __user_info[user] = {}
+            if param == 'theme':
+                if value in themes:
+                    __user_info[user]['theme'] = value
+                    __local_config['user_info'] = {user: value}
+                else:
+                    __user_info[user]['theme'] = 'default'
+                    console.print(f'[bold red] ❌ No theme found for user {user}[/] [bold magenta] Using default theme.[/]')
+            elif param == 'symbol':
+                if value in symbols:
+                   __user_info[user]['symbol'] = value
+                else:
+                    __user_info[user]['symbol'] = '{'
+                    console.print(f'[bold red] ❌ No symbol found for user {user}[/] [bold magenta] Using default symbol.[/]')
+            write(__user_info, confpaths[1])
+            console.print(f'[bold magenta] ✅ Config created for user {user}[/]')
+            console.print(f'[dim magenta] 👷 Config: {param} ===> {value}[/]')
+            write(__user_info, confpaths[1])
+            write(__local_config, confpaths[0])
+            sys.exit(0)
         else:
-            uconf = (
-                conf[user] if user in conf
-                else conf["user_info"][user] if "user_info" in conf and user in conf["user_info"]
-                else conf
+            console.print(f'[bold red] ❌ No config found for user {user}[/]')
+            sys.exit(0)
+
+    user = (
+        user if user is not None
+        else local_config['last_user'] if 'last_user' in local_config
+        else os.getlogin()
+        )
+    
+    for i, conf in enumerate([__local_config, __user_info]):
+        uconf = (
+            conf[user] if user in conf
+            else conf["user_info"][user] if "user_info" in conf and user in conf["user_info"]
+            else conf["user_info"] if "user_info" in conf
+            else conf
+            )
+        if param in uconf:
+            uconf[param] = value
+            json.dump(
+                conf, open(confpaths[i], 'w+'), indent=4
                 )
-            if param not in uconf:
-                console.print(f'[bold magenta]No config found for user [underline]{user}, [/][/][bold magenta]using default value.[/]')
-            else:
-                uconf[param] = value
-                json.dump(
-                    conf, open(confpaths[i], 'w+'), indent=4
-                    )
-                console.print(f'[dim magenta]Config: {uconf} ===> {param}: {value}[/]')
+            console.print(f'[dim magenta]Config: {uconf} ===> {param}: {value}[/]')
+            sys.exit(0)
+    console.print(f'[bold red] ❌ No config found for user {user}[/]')
 
 @config.command(
     name='from-file',
-    help='Add a new user from a JSON user entry. [bold yellow] Alias: `ff`[/]',
+    help='Add a new user from a JSON 📁 user entry. [bold yellow] Alias: `ff`[/]',
     no_args_is_help=True
-    
     )
 def from_file(
     markup_file: str = typer.Argument(..., help='The JSON/TOML/XML/YAML file containing the user entry.'),
     ):
-    """Add a new user from a JSON user entry.
+    """Add a new user from a JSON 📁 user entry.
     
     The JSON file should have the following structure:
     ```json
@@ -235,26 +298,48 @@ def getter(
     user: str = typer.Option(None, help='The user to get the value for.'),
     ):
     confpaths = [config_dir / 'local-config.json', config_dir / 'user-settings.json']
+    
+    __local_config = read(confpaths[0])
+    __user_info = read(confpaths[1])
+    
     user = (
-        local_config['last_user'] if user is None
-        else user or os.getlogin()
+        user if user is not None
+        else local_config['last_user'] if 'last_user' in local_config
+        else os.getlogin()
         )
+
     param, user = param.lower(), user.lower()
-    for i, conf in enumerate([local_config, user_info]):
-        if user not in conf:
-            pass
+
+    if param == 'last_user':
+        value = __local_config['last_user']
+        console.print(f'[bold magenta] ✅ Config found for user {user}[/]')
+        console.print(value)
+        sys.exit(0)
+    
+    if param == "user":
+        if os.getlogin() in __local_config["user_info"]:
+            value = __user_info[user]
+            console.print(f'[bold magenta] ✅ Config for themes found for user {os.getlogin()}[/]')
+            console.print(value)
+            sys.exit(0)
         else:
-            uconf = (
-                conf[user] if user in conf
-                else conf["user_info"][user] if "user_info" in conf and user in conf["user_info"]
-                else conf
-                )
-            if param not in uconf:
-                console.print(f'❗ [bold red]No config found for[/][cyan] user [underline]{user}, [/][/][bold magenta]using default value.[/]')
-            else:
-                value = uconf[param]
-                
-                console.print(f'✅ [bold green][underline]Found parameter:[/underline] {param} = {value} in [/][bold yellow]file {confpaths[i]}[/]')
+            console.print(f'[bold red] ❌ No config found for user {os.getlogin()}[/]')
+            console.print(f'[dim yellow] ❗️ You can add a config for {os.getlogin()} by running `config from-file <file>` or `config init`, or `config set <param> <value> <user>`[/]')
+            sys.exit(1)
+    
+    for i, conf in enumerate([__local_config, __user_info]):
+        uconf = (
+            conf[user] if user in conf
+            else conf["user_info"][user] if "user_info" in conf and user in conf["user_info"]
+            else conf["user_info"] if "user_info" in conf
+            else conf
+            )
+        if param in uconf:
+            value = uconf[param]
+            console.print(f'[bold magenta] ✅ Config found for user {user}[/]')
+            console.print(value)
+            sys.exit(0)
+    console.print(f'[bold red] ❌ No config found for user {user}[/]')
 
 @config.command(name='list', help='List all config values. [bold yellow] Alias: `ls`[/]')
 def lister():
@@ -276,32 +361,60 @@ def reset():
     os.remove(local_config)
     
     
-@config.command(
-    name='view',
-    help='View currently available design options',
-    no_args_is_help=True,
+@view.command(
+    name='colors',
+    help='View currently available 🏳️‍🌈 color 🏳️‍🌈 options',
     )
-def view(
-    item: str = typer.Argument(..., help='The item to view.'),
-    ):
-    """View currently available design options.  
-    Notable items:
-    - themes
-    - symbols
-    - colors
-    
-    """
-    
-    item = item.lower()
-    
-    if item == 'colors':
-        console.print(
+def view_colors():
+    """View currently available 🏳️‍🌈 color 🏳️‍🌈 options"""
+    console.print(
             colorTable()
         )
-    elif item == 'themes':
-        console.print(
+
+@view.command(
+    name='themes',
+    help='View currently available 🖌️ theme 🖌️ options',
+    )
+def view_themes():
+    """View currently available 🖌️ theme 🖌️ options"""
+    console.print(
             themeTable()
         )
-        
-        
+
+@view.command(
+    name='symbols',
+    help='View currently available 🗼 symbols 🗼 options',
+    )
+def view_themes():
+    """View currently available 🗼 symbols 🗼 options"""
+    console.print(
+            symbolTable()
+        )
+
+@view.command(
+    name='extras',
+    help='View extra 🎁 symbols 🎁 options 🧐 [dim](not included in the default set)[/]',
+    )
+def extras(num: int = typer.Option(100, "-n", "--num", help='The number of extra symbols to view.')):
+    """View extra 🎁 symbols 🎁 options 🧐 [dim](not included in the default set)[/]"""
+
+    rich.print("""
+[bold magenta]I had to keep the basic symbols quite light, however,[/]
+    
+[bold green]There are [underline]a lot of other symbols[/] available.[/]
+If you want to add one to the list, feel free to either [bold cyan]contact me[/]
+or add the corresponding unicode to the symbols file [yellow]using the `extra` config command.
+[/]
+    """)
+    ok = typer.confirm(f'You are about to view {num} extra symbols. Do you want to continue?', default=True)
+    if ok:
+        console.print(
+            extrasTable(num)
+        )
+    else:
+        console.print('[bold red]Aborting.[/]')
+        console.print('[dim]You can always view the extra symbols later.[/]')
+        console.print('[green]Tip: Use the -n or --num parameter[/]')
+        console.print('[bold yellow]Exiting...[/]')
+        sys.exit(0)
    

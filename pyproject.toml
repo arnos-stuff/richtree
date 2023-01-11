@@ -20,6 +20,9 @@ soup2dict = "^2.1.0"
 [tool.poetry.scripts]
 iotree = "iotree.__main__:app"
 
+[tool.poetry.group.viz.dependencies]
+ipython = "^8.8.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

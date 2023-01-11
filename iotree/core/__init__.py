@@ -5,7 +5,8 @@ from .render.trees import (
 
 from .render.demo import (
     print_demo, demo_symbols, demo_themes,
-    colorTable, themeTable, render_file_demo
+    colorTable, themeTable, symbolTable, extrasTable,
+    render_file_demo
 )
 
 from .render.theme import (
@@ -18,7 +19,8 @@ from .render.funcs import (
 )
 
 from .render.tables import (
-    tableFromRecords, treeThemeToTable, recordFormatting,
+    tableFromRecords, treeThemeToTable,
+    recordFormatting
     
 )
 
@@ -28,3 +30,5 @@ from .render.trees import (
 
 from .io.reader import read_file, read_dir, read
 from .io.writer import write_file, write_dir, write
+from .io.serialize import dumps
+from .io.internals import format_dict

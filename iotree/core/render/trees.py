@@ -3,7 +3,11 @@ from time import sleep
 
 from rich.tree import Tree
 from itertools import cycle
-from typing import Any, Dict, List, Union, Optional, Tuple
+from typing import (
+    Any, Dict, List, Union,
+    Optional, Tuple, MutableMapping,
+    MutableSequence
+    )
 
 
 from iotree.core.render.theme import (
@@ -69,7 +73,7 @@ def build(
     else:
         numbered = False
         
-    if isinstance(dictlike, list):
+    if isinstance(dictlike, (list, MutableSequence)):
         _col = next(cyclcols)
         
         if numbered:
@@ -91,7 +95,7 @@ def build(
                       numbered=numbered,
                       symbol=symbol,
                       user=user)
-    elif isinstance(dictlike, dict):
+    elif isinstance(dictlike, (dict, MutableMapping)):
         _col = next(cyclcols)
         for key, value in dictlike.items():
             if not isinstance(value, (dict, list)):
@@ -107,6 +111,7 @@ def build(
                       user=user
                       )
     else:
+        if not isinstance(dictlike, (str, float, int)):
+            raise TypeError(f"Expected a dictionary or list of dictionaries, got {type(dictlike)}")
         state.add(f"[{leaf_color}] {dictlike}[/]")
-        
     return state

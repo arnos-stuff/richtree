@@ -1,5 +1,5 @@
 import rich
-import json
+import orjson
 from time import sleep
 
 from rich.text import Text
@@ -10,9 +10,11 @@ from rich.panel import Panel
 from rich.layout import Layout, RowSplitter, ColumnSplitter
 from typing import Any, Dict, List, Union, Optional, Tuple
 
-from iotree.core.render.trees import build
+from ..render.trees import build
 from ..io.reader import read
-from iotree.utils.paths import (
+from ..io.serialize import dumps
+from ..io.internals import format_dict
+from ...utils.paths import (
     package_dir, base_dir, config_dir, safe_config_load,
 )
 
@@ -22,33 +24,61 @@ symbols, themes, user_infos, local_config = safe_config_load()
 ############ DEMO UTILS ##################
 ##########################################
 
-def render_file_demo(appname: str) -> None:
-    formats = ['json', 'yaml', 'toml', 'xml']
+def find_obj_text_size(obj: Any, font_size: Optional[int] = 10) -> Tuple[int, int]:
+    """Find the width of the text representation of an object."""
+    txt = dumps(obj)
+    height = len(txt.splitlines())*10
+    width = max( len(txt) for txt in txt.splitlines() )*font_size
+    return height, width
+
+def find_terminal_size() -> Tuple[int, int]:
+    """Find the size of the terminal."""
+    tsize = os.get_terminal_size()
+    return tsize.lines, tsize.columns
+
+def find_text_ratio(obj: Any) -> float:
+    """Find the ratio of the text representation of an object to the terminal size."""
+    height, width = find_obj_text_size(obj)
+    theight, twidth = find_terminal_size()
+    return height/theight, width/twidth
+
+def render_file_demo(
+    appname: str,
+    formats: Optional[List[str]] = format_dict["formats"],
+    secs: float = 0.7,
+    ) -> None:
     content = []
+
+    sizes = []
     
     for fmt in formats:
-        content += [Rule(" Extension: ." + fmt + " ")]
-        raw = open(package_dir.joinpath('examples', f'example.{fmt}'), 'r').read()
-        raw = Text(raw, style='bold yellow')
-        obj = read(package_dir.joinpath('examples', f'example.{fmt}'))
-        obj = Text(json.dumps(obj, indent=2), style='bold green')
+        rich.print(Rule(" Extension: " + fmt + " ", style='bold cyan'))
+        raw = open(package_dir.joinpath('examples', f'example{fmt}'), 'r').read()
+        rraw = Text(raw.strip(), style='bold yellow', overflow='fold')
+        obj = read(package_dir.joinpath('examples', f'example{fmt}'))
+        robj = Text(
+            dumps(obj).strip(),
+            style='bold green',
+            overflow='fold')
         tree = build(obj)
-        content += [[raw, obj, tree]]
-        
-    layout = Layout(name=f'Demo for {appname}', ratio=3)
-    layout.split_row(
-        *[
-            Layout(name=f'Row-{i}', size=1, ratio=1) for i in range(len(content))
-        ]
-    )
+
+        content = [rraw, robj, tree]
+
+        # here we display our demo in a layout
+        layout = Layout(name=f'Extension .{fmt}', ratio=0.7)
+
+        layout.split_row(
+                    *[
+                        Layout(
+                            cont,
+                            name=f'Cell-no-{idx}'
+                        )
+                        for idx,cont in enumerate(content)
+                    ]
+                )
     
-    for idx, cont in enumerate(content):
-        if isinstance(cont, list):
-            layout[f'Row-{idx}'].split_column(*cont)
-        else:
-            layout[f'Row-{idx}'].update(cont)
-            
-    rich.print(layout)
+        rich.print(layout)
+        sleep(secs)
         
     
         
@@ -190,4 +220,59 @@ def themeTable() -> None:
             "[bold magenta]" + name + "[/]"
         )
     
+    return table
+
+
+def symbolTable() -> None:
+    """Print a symbol table."""
+    table = rich.table.Table(
+        show_header=True,
+        header_style="bold magenta",
+        title="Available Symbols",
+        border_style="magenta",
+        box=rich.box.ROUNDED,)
+    
+    table.add_column("Symbol")
+    table.add_column("Code")
+    table.add_column("Example")
+    table.add_column("Name")
+    
+    for symbol in symbols:
+        unisymb = symbols[symbol]
+        table.add_row(
+            f"[bold cyan]{symbol}[/]",
+            f"[bold yellow]{unisymb}[/]",
+            f"[bold yellow]{unisymb} I [/][bold green]{unisymb}love[/][pink] {unisymb} colors[/] {unisymb}",
+            f"[bold red]{symbol}[/]",
+        )
+    return table
+
+
+def extrasTable(n=500) -> None:
+    """Print the tables containing the extras symbols table."""
+
+    table = rich.table.Table(
+        show_header=True,
+        header_style="bold magenta",
+        title="Extra Symbols",
+        border_style="magenta",
+        box=rich.box.ROUNDED,)
+    
+    table.add_column("Symbol")
+    table.add_column("Code")
+    table.add_column("Example")
+    table.add_column("Name")
+
+    extra_symbols = read(config_dir / "symbols-extras.json")
+    
+    topk_symbols = list(extra_symbols.keys())[:n]
+
+    for symbol in topk_symbols:
+        unisymb = extra_symbols[symbol]
+        table.add_row(
+            f"[bold cyan]{symbol}[/]",
+            f"[bold yellow]{unisymb}[/]",
+            f"[bold yellow]{unisymb} I [/][bold green]{unisymb}love[/][pink] {unisymb} colors[/] {unisymb}",
+            f"[bold red]{symbol}[/]",
+        )
     return table
