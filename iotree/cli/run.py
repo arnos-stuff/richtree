@@ -187,7 +187,7 @@ def setter(
         sys.exit(0)
 
     user = user.lower() if user is not None else None
-    
+
     if user is not None and user not in __user_info:
         ok = Confirm.ask(f'[bold red] ❌ No config found for user {user}[/] [bold magenta] Would you like to create one?[/]')
         if ok:
@@ -303,10 +303,6 @@ def getter(
     
     __local_config = read(confpaths[0])
     __user_info = read(confpaths[1])
-
-
-    console.print(__user_info)
-    console.print(__local_config)
 
     user = (
         user if user is not None
