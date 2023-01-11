@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotree"
-version = "0.1.1"
+version = "0.1.2"
 description = "A lightweight CLI + lib that allows you to perform basic IO tasks and display your content as rich trees and tables."
 authors = ["Arno V <bcda0276@gmail.com>"]
 readme = "README.md"

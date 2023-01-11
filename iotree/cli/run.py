@@ -15,7 +15,7 @@ from iotree.core.render.trees import (
 )
 
 from iotree.core.render.demo import (
-    demo_symbols, demo_themes, colorTable,
+    demo_symbols, demo_themes, colorTable, themeTable
 )
 
 from iotree.core.render.tables import (
@@ -284,12 +284,12 @@ def reset():
 def view(
     item: str = typer.Argument(..., help='The item to view.'),
     ):
-    """View currently available design options.
-    
+    """View currently available design options.  
     Notable items:
     - themes
     - symbols
     - colors
+    
     """
     
     item = item.lower()
@@ -298,7 +298,10 @@ def view(
         console.print(
             colorTable()
         )
-    else:
-        pass
+    elif item == 'themes':
+        console.print(
+            themeTable()
+        )
+        
         
    

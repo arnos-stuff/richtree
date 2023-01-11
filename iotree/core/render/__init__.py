@@ -17,5 +17,5 @@ from .theme import (
 )
 
 from .demo import (
-    print_demo, demo_symbols, demo_themes, colorTable,
+    print_demo, demo_symbols, demo_themes, colorTable, themeTable
 )

@@ -110,3 +110,48 @@ def colorTable() -> None:
             r"\[color({" + str(idx) + r"})] My sentence \[/]",
         )
     return table
+
+
+
+def themeTable() -> None:
+    """Print a theme table.
+    Themes are made of 4 colors for higher layers, and 1
+    unique color for the lowest layer."""
+    table = rich.table.Table(
+        show_header=True,
+        header_style="bold magenta",
+        title="Available Themes",
+        border_style="magenta",
+        box=rich.box.ROUNDED,)
+    
+    demo_obj = {
+        "key A": "value A",
+        "key B": ["item one", "item two"],
+        "key C" : {
+            "key C1": "value C1",
+            "key C2": "Finishing the demo"
+            }
+    }
+    
+    table.add_column("Node: First Layer")
+    table.add_column("Node: Second Layer")
+    table.add_column("Node: Third Layer")
+    table.add_column("Node: Fourth Layer")
+    table.add_column("Leaf: Layer for values")
+    table.add_column("Theme representation")
+    table.add_column("Theme name")
+    
+    for name in themes:
+        leaf = themes[name]["leaf"]
+        nodes = themes[name]["node"]
+        table.add_row(
+            Panel(f"{nodes[0]}", style=f"on {nodes[0]}"),
+            Panel(f"{nodes[1]}", style=f"on {nodes[1]}"),
+            Panel(f"{nodes[2]}", style=f"on {nodes[2]}"),
+            Panel(f"{nodes[3]}", style=f"on {nodes[3]}"),
+            Panel(f"{leaf}", style=f"on {leaf}"),
+            Panel(build(demo_obj, theme=name), expand=False, width=40),
+            "[bold magenta]" + name + "[/]"
+        )
+    
+    return table

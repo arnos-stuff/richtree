@@ -3,7 +3,9 @@ from .core.render.trees import (
     build
 )
 
-from .core.render.demo import demo_symbols, demo_themes, colorTable
+from .core.render.demo import (
+    demo_symbols, demo_themes, colorTable, themeTable
+)
 
 from .core.render.theme import (
     initConfig, convertTheme, check_none, lnode
