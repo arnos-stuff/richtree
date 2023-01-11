@@ -35,7 +35,7 @@ app = typer.Typer(
     name='iotree',
     help='A CLI & python package for rendering markup language docs as trees.',
     no_args_is_help=True,
-    rich_help_panel=True,
+    rich_help_panel="rich",
     rich_markup_mode='rich',
     )
 
@@ -43,18 +43,18 @@ config = typer.Typer(
     name='config',
     help='Configure the style of your tree.',
     no_args_is_help=True,
-    rich_help_panel=True,
+    rich_help_panel="rich",
     rich_markup_mode='rich',
     )
      
 app.add_typer(config, name='config',
     help='Configure the style of your tree.',
-    rich_help_panel=True,
+    rich_help_panel="rich",
     )
 
 app.add_typer(config, name='cfg', hidden=True,
     help='Alias for `config`. Configure the style of your tree.',
-    rich_help_panel=True,
+    rich_help_panel="rich",
     )
 
 

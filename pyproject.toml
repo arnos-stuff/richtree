@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotree"
-version = "0.1.2"
+version = "0.1.5"
 description = "A lightweight CLI + lib that allows you to perform basic IO tasks and display your content as rich trees and tables."
 authors = ["Arno V <bcda0276@gmail.com>"]
 readme = "README.md"
@@ -16,7 +16,7 @@ xmltodict = "^0.13.0"
 httpx = {version = "^0.22.0", source = "pypi"}
 
 [tool.poetry.scripts]
-iotree = "iotree.cli:app"
+iotree = "iotree.__main__:app"
 
 [build-system]
 requires = ["poetry-core"]
