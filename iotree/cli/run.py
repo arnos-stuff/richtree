@@ -177,7 +177,7 @@ def setter(
     __local_config = read(confpaths[0])
     __user_info = read(confpaths[1])
 
-    param, value, user = param.lower(), value.lower(), user.lower()
+    param, value = param.lower(), value.lower()
 
     if param == 'last_user':
         __local_config['last_user'] = value
@@ -186,6 +186,8 @@ def setter(
         console.print(f'[dim magenta] 👷 Config: {param} ===> {value}[/]')
         sys.exit(0)
 
+    user = user.lower() if user is not None else None
+    
     if user is not None and user not in __user_info:
         ok = Confirm.ask(f'[bold red] ❌ No config found for user {user}[/] [bold magenta] Would you like to create one?[/]')
         if ok:
@@ -301,10 +303,13 @@ def getter(
     
     __local_config = read(confpaths[0])
     __user_info = read(confpaths[1])
-    
+
+
+    console.print(__user_info)
+    console.print(__local_config)
+
     user = (
         user if user is not None
-        else local_config['last_user'] if 'last_user' in local_config
         else os.getlogin()
         )
 
@@ -317,15 +322,17 @@ def getter(
         sys.exit(0)
     
     if param == "user":
-        if os.getlogin() in __local_config["user_info"]:
-            value = __user_info[user]
-            console.print(f'[bold magenta] ✅ Config for themes found for user {os.getlogin()}[/]')
+        if user in __local_config["user_info"] or user in __user_info:
+            value = f"user: {__user_info[user]}" if user in __user_info else f"user: {__local_config['user_info'][user]}"
+            console.print(f'[bold magenta] ✅ Config for themes found for user {user}[/]')
             console.print(value)
             sys.exit(0)
         else:
             console.print(f'[bold red] ❌ No config found for user {os.getlogin()}[/]')
             console.print(f'[dim yellow] ❗️ You can add a config for {os.getlogin()} by running `config from-file <file>` or `config init`, or `config set <param> <value> <user>`[/]')
             sys.exit(1)
+
+    user = os.getlogin() if "last_user" not in __local_config else __local_config["last_user"]
     
     for i, conf in enumerate([__local_config, __user_info]):
         uconf = (

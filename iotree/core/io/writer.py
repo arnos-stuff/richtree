@@ -10,18 +10,19 @@ from typing import Union, List, Dict, Any, Optional, Tuple, Callable, Iterable
 from .internals import format_dict
 
 def write(
+    data: Union[Dict[str, Any], List[Dict[str, Any]]],
     path: Union[str, Path],
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-    """Read a file or directory of files.
+    """Write a file to path in multiple formats.
     
     Supported file formats: .json, .yaml, .toml, .proto
     """
     path = Path(path)
     
     if path.is_dir():
-        return write_dir(path)
+        return write_dir(data, path)
     else:
-        return write_file(path)
+        return write_file(data, path)
     
 def write_file(
     data: Union[Dict[str, Any], List[Dict[str, Any]]],
