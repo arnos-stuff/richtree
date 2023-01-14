@@ -99,11 +99,9 @@ def rich_func(func, *args, **kwargs) -> Any:
     return result
     
         
-        
-    
     
 def rich_func_chainer(
-    funcs: List[Callable], *args, **kwargs
+    funcs: List[Callable], params: List[Any], *args, **kwargs
     ) -> Iterable[Any]:
     """Run a list of functions with rich progress bar.
     
@@ -113,12 +111,19 @@ def rich_func_chainer(
     
     Args:
         funcs (List[Callable]): A list of functions to run.
-        *args: Arguments to pass to each function.
-        **kwargs: Keyword arguments to pass to each function.
+        params (List[Any]): A list of parameters to pass to each function. They must be in the same order as the functions.
+        *args: Arguments to pass to each function. These will be passed to all functions.
+        **kwargs: Keyword arguments to pass to each function. These will be passed to all functions.
 
     Returns:
         Iterable[Any]: An iterable of the results of each function.
     """
+
+    if len(funcs) != len(params):
+        if not isinstance(funcs, list):
+            funcs = [funcs]*len(params)
+        else:
+            raise ValueError("The number of functions and parameters must be the same.")
     
     progress = kwargs.pop("progress", None)
     console = kwargs.pop("console", None)
@@ -147,7 +152,13 @@ def rich_func_chainer(
         for i, f in enumerate(funcs):
             task_id = progress.add_task(f"Running {f.__name__}", total=1)
             try:
-                result = f(*args, **kwargs)
+                if isinstance(params[i], list):
+                    result = f(*params[i], *args, **kwargs)
+                elif isinstance(params[i], dict):
+                    result = f(*args, **params[i], **kwargs)
+                else:
+                    result = f(params[i], *args, **kwargs)
+                    
                 progress.update(task_id, advance=1)
             except Exception as e:
                 progress.console.print(f"[bold red]Error while running {f.__name__}[/bold red]")
