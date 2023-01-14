@@ -1,6 +1,6 @@
 import rich
 
-from typing import Any, Callable, List, Dict
+from typing import Any, Callable, List, Dict, Iterable
 from rich.console import Console
 from rich.progress import (
     Progress, BarColumn, TextColumn,
@@ -86,6 +86,17 @@ def rich_func(func, *args, **kwargs) -> Any:
     theme = kwargs.pop("theme") if "theme" in kwargs else format_user_theme({})
     console = kwargs.pop("console") if "console" in kwargs else Console()
     pbar = kwargs.pop("progress") if "progress" in kwargs else apply_progress_theme(theme=theme, console=console)
+    with pbar:
+        task_id = pbar.add_task(f"Running {func.__name__}", total=1)
+        try:
+            result = func(*args, **kwargs)
+            pbar.update(task_id, advance=1)
+        except Exception as e:
+            pbar.console.print(f"[bold red]Error while running {func.__name__}[/bold red]")
+            pbar.console.print(e)
+            pbar.update(task_id, advance=1)
+            raise e
+    return result
     
         
         
@@ -93,7 +104,7 @@ def rich_func(func, *args, **kwargs) -> Any:
     
 def rich_func_chainer(
     funcs: List[Callable], *args, **kwargs
-    ) -> Any:
+    ) -> Iterable[Any]:
     """Run a list of functions with rich progress bar.
     
     If you want to customize the progress bar, you can pass a `progress` keyword argument.
@@ -104,6 +115,9 @@ def rich_func_chainer(
         funcs (List[Callable]): A list of functions to run.
         *args: Arguments to pass to each function.
         **kwargs: Keyword arguments to pass to each function.
+
+    Returns:
+        Iterable[Any]: An iterable of the results of each function.
     """
     
     progress = kwargs.pop("progress", None)
@@ -123,3 +137,25 @@ def rich_func_chainer(
                 TimeRemainingColumn(),
                 console=console,
             )
+
+        else:
+            progress = apply_progress_theme(theme=theme, console=console)
+
+    errs = []
+
+    with progress:
+        for i, f in enumerate(funcs):
+            task_id = progress.add_task(f"Running {f.__name__}", total=1)
+            try:
+                result = f(*args, **kwargs)
+                progress.update(task_id, advance=1)
+            except Exception as e:
+                progress.console.print(f"[bold red]Error while running {f.__name__}[/bold red]")
+                progress.console.print(e)
+                progress.update(task_id, advance=1)
+                errs.append(e)
+                result = None
+            yield result
+    if errs:
+        fmt_errs = '\n - '.join([str(e) for e in errs])
+        raise ValueError(f"Errors while running functions: {fmt_errs}")
