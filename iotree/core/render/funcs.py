@@ -1,4 +1,6 @@
 import rich
+import warnings
+from itertools import cycle
 
 from typing import Any, Callable, List, Dict, Iterable
 from rich.console import Console
@@ -87,14 +89,14 @@ def rich_func(func, *args, **kwargs) -> Any:
     console = kwargs.pop("console") if "console" in kwargs else Console()
     pbar = kwargs.pop("progress") if "progress" in kwargs else apply_progress_theme(theme=theme, console=console)
     with pbar:
-        task_id = pbar.add_task(f"Running {func.__name__}", total=1)
+        task_id = pbar.add_task(f"Running {func.__name__}", total=None)
         try:
             result = func(*args, **kwargs)
-            pbar.update(task_id, advance=1)
+            pbar.update(task_id, advance=100)
         except Exception as e:
             pbar.console.print(f"[bold red]Error while running {func.__name__}[/bold red]")
             pbar.console.print(e)
-            pbar.update(task_id, advance=1)
+            pbar.update(task_id, advance=100)
             raise e
     return result
     
@@ -118,12 +120,12 @@ def rich_func_chainer(
     Returns:
         Iterable[Any]: An iterable of the results of each function.
     """
-
-    if len(funcs) != len(params):
-        if not isinstance(funcs, list):
-            funcs = [funcs]*len(params)
-        else:
-            raise ValueError("The number of functions and parameters must be the same.")
+    if not isinstance(funcs, Iterable):
+        funcs = [funcs]
+    if len(funcs) < len(params):
+            funcs = funcs*len(params) if len(funcs) == 1 else cycle(funcs)
+    else:
+        warnings.WarningMessage("The number of functions must be < than number of parameters or must be the same.", "Incorrect Value", __file__, 0)
     
     progress = kwargs.pop("progress", None)
     console = kwargs.pop("console", None)
@@ -158,7 +160,7 @@ def rich_func_chainer(
                     result = f(*args, **params[i], **kwargs)
                 else:
                     result = f(params[i], *args, **kwargs)
-                    
+
                 progress.update(task_id, advance=1)
             except Exception as e:
                 progress.console.print(f"[bold red]Error while running {f.__name__}[/bold red]")
@@ -166,7 +168,7 @@ def rich_func_chainer(
                 progress.update(task_id, advance=1)
                 errs.append(e)
                 result = None
-            yield result
+            yield i, result
     if errs:
         fmt_errs = '\n - '.join([str(e) for e in errs])
         raise ValueError(f"Errors while running functions: {fmt_errs}")
