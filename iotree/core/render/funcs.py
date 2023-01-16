@@ -131,7 +131,7 @@ def rich_func_chainer(
     if len(funcs) < len(params):
             funcs = funcs*len(params) if len(funcs) == 1 else cycle(funcs)
     else:
-        warnings.WarningMessage("The number of functions must be < than number of parameters or must be the same.", "Incorrect Value", __file__, 0)
+        warnings.WarningMessage("The number of functions must be < than number of parameters or must be the same.", "Incorrect Value", str(__file__), 0)
     
     progress = kwargs.pop("progress", None)
     console = kwargs.pop("console", None)
