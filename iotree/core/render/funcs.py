@@ -103,8 +103,10 @@ def rich_func(func, *args, **kwargs) -> Any:
         
     
 def rich_func_chainer(
-    funcs: List[Callable], params: List[Any], *args, **kwargs
-    ) -> Iterable[Any]:
+    funcs: List[Callable], params: List[Any],
+    condition_innerloop: Optional[Callable] = lambda params: False,
+    *args, **kwargs
+    ) -> Iterable[int, Any]:
     """Run a list of functions with rich progress bar.
     
     If you want to customize the progress bar, you can pass a `progress` keyword argument.
@@ -114,6 +116,8 @@ def rich_func_chainer(
     Args:
         funcs (List[Callable]): A list of functions to run.
         params (List[Any]): A list of parameters to pass to each function. They must be in the same order as the functions.
+        condition_innerloop (Optional[Callable], optional): A function that takes as input the same parameters as the i-th callback and returns a boolean.
+            If true, an inner loop will be run until the same callback returns False. Defaults to None.
         *args: Arguments to pass to each function. These will be passed to all functions.
         **kwargs: Keyword arguments to pass to each function. These will be passed to all functions.
 
@@ -149,10 +153,21 @@ def rich_func_chainer(
             progress = apply_progress_theme(theme=theme, console=console)
 
     errs = []
-
+    current_loop_task = None
     with progress:
+        main_task = progress.add_task("Running functions", total=len(funcs))
         for i, f in enumerate(funcs):
-            task_id = progress.add_task(f"Running {f.__name__}", total=1)
+            main_loop_task = progress.add_task(f"Running ƒ(●) ≔ {f.__name__}({params[i]})", total=None)
+            if condition_innerloop(*params[i]):
+                if not current_loop_task:
+                    inner_loop_task = progress.add_task(f"Running subquery for {f.__name__}", total=None)
+                    current_loop_task = inner_loop_task
+                else:
+                    current_loop_task = None
+            else:
+                if current_loop_task:
+                    progress.remove_task(current_loop_task)
+                    current_loop_task = None
             try:
                 if isinstance(params[i], list):
                     result = f(*params[i], *args, **kwargs)
@@ -160,15 +175,19 @@ def rich_func_chainer(
                     result = f(*args, **params[i], **kwargs)
                 else:
                     result = f(params[i], *args, **kwargs)
+                
+                progress.update(current_loop_task, advance=1) if current_loop_task else None
+                progress.update(main_loop_task, advance=1)
+                progress.update(main_task, advance=1)
 
-                progress.update(task_id, advance=1)
             except Exception as e:
                 progress.console.print(f"[bold red]Error while running {f.__name__}[/bold red]")
                 progress.console.print(e)
-                progress.update(task_id, advance=1)
+                progress.update(main_loop_task, advance=1)
                 errs.append(e)
-                result = None
+                yield None, e
             yield i, result
+            
     if errs:
         fmt_errs = '\n - '.join([str(e) for e in errs])
         raise ValueError(f"Errors while running functions: {fmt_errs}")
