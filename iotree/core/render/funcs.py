@@ -1,8 +1,9 @@
 import rich
 import warnings
+from pathlib import Path
 from itertools import cycle
 
-from typing import Any, Callable, List, Dict, Iterable
+from typing import Any, Callable, List, Dict, Iterable, Optional, Tuple, Union
 from rich.console import Console
 from rich.progress import (
     Progress, BarColumn, TextColumn,
@@ -104,9 +105,9 @@ def rich_func(func, *args, **kwargs) -> Any:
     
 def rich_func_chainer(
     funcs: List[Callable], params: List[Any],
-    condition_innerloop: Optional[Callable] = lambda params: False,
+    condition_innerloop: Optional[Callable] = lambda *params: False,
     *args, **kwargs
-    ) -> Iterable[int, Any]:
+    ) -> Iterable[Tuple[Union[int, None], Any]]:
     """Run a list of functions with rich progress bar.
     
     If you want to customize the progress bar, you can pass a `progress` keyword argument.
@@ -122,7 +123,8 @@ def rich_func_chainer(
         **kwargs: Keyword arguments to pass to each function. These will be passed to all functions.
 
     Returns:
-        Iterable[Any]: An iterable of the results of each function.
+        Iterable[Any]: An iterable of the results of each function + the index of the function that returned the result.
+            if the function raised an exception, the index will be None, and the result will be the exception.
     """
     if not isinstance(funcs, Iterable):
         funcs = [funcs]
@@ -154,39 +156,55 @@ def rich_func_chainer(
 
     errs = []
     current_loop_task = None
+    
+    fmt_params = []
+    callback_params = []
+    for p in params:
+        if not isinstance(p, Iterable):
+            sp = p.name if isinstance(p, Path) else str(p)
+            fmt_params.append(sp)
+            callback_params.append([p])
+        else:
+            sp = ",".join([x.name if isinstance(x, Path) else str(x) for x in p])
+            fmt_params.append(sp)
+            callback_params.append(p)
+
     with progress:
         main_task = progress.add_task("Running functions", total=len(funcs))
         for i, f in enumerate(funcs):
-            main_loop_task = progress.add_task(f"Running ƒ(●) ≔ {f.__name__}({params[i]})", total=None)
-            if condition_innerloop(*params[i]):
+            main_loop_task = progress.add_task(f"Running ƒ(●) := {f.__name__}({fmt_params[i]})", total=None)
+            if condition_innerloop(*callback_params[i]):
                 if not current_loop_task:
                     inner_loop_task = progress.add_task(f"Running subquery for {f.__name__}", total=None)
                     current_loop_task = inner_loop_task
-                else:
-                    current_loop_task = None
             else:
                 if current_loop_task:
                     progress.remove_task(current_loop_task)
                     current_loop_task = None
+                    progress.update(main_loop_task, complete=True)
+                    progress.remove_task(main_loop_task)
+                    main_loop_task = progress.add_task(f"Running ƒ(●) ≔ {f.__name__}({fmt_params[i]})", total=None)
             try:
-                if isinstance(params[i], list):
-                    result = f(*params[i], *args, **kwargs)
-                elif isinstance(params[i], dict):
-                    result = f(*args, **params[i], **kwargs)
+                if isinstance(callback_params[i], list):
+                    result = f(*callback_params[i], *args, **kwargs)
+                elif isinstance(callback_params[i], dict):
+                    result = f(*args, **callback_params[i], **kwargs)
                 else:
-                    result = f(params[i], *args, **kwargs)
+                    result = f(callback_params[i], *args, **kwargs)
                 
-                progress.update(current_loop_task, advance=1) if current_loop_task else None
-                progress.update(main_loop_task, advance=1)
+                progress.update(current_loop_task, complete=True) if current_loop_task else None
+                progress.update(main_loop_task, complete=True) if not current_loop_task else None
                 progress.update(main_task, advance=1)
+
+                yield i, result
 
             except Exception as e:
                 progress.console.print(f"[bold red]Error while running {f.__name__}[/bold red]")
                 progress.console.print(e)
-                progress.update(main_loop_task, advance=1)
+                progress.update(main_loop_task, complete=True)
+                progress.update(main_task, advance=1)
                 errs.append(e)
                 yield None, e
-            yield i, result
             
     if errs:
         fmt_errs = '\n - '.join([str(e) for e in errs])
